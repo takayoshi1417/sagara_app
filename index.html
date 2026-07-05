@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="サーガラ予約">
+<meta name="theme-color" content="#0D0D0D">
+<meta name="mobile-web-app-capable" content="yes">
+<title>サーガラ各種予約</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0D0D0D;
+    --surface:#1A1A1A;
+    --surface2:#242424;
+    --border:#2E2E2E;
+    --border-hi:#444;
+    --gold:#C8A96E;
+    --gold-dim:#8B7040;
+    --text:#F0EDE8;
+    --text-sub:#888;
+    --text-muted:#555;
+    --danger:#E05252;
+    --success:#4CAF82;
+    --white:#FFFFFF;
+    --radius:14px;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html{height:-webkit-fill-available;}
+  body{margin:0;font-family:'Noto Sans JP',-apple-system,'Hiragino Sans','Yu Gothic',sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;min-height:100vh;min-height:-webkit-fill-available;overscroll-behavior:none;}
+  input,textarea,select{font-size:16px!important;} /* iOS自動ズーム防止 */
+  button{-webkit-appearance:none;touch-action:manipulation;}
+  #app{max-width:560px;margin:0 auto;padding-bottom:calc(56px + var(--safe-bottom));min-height:100vh;background:var(--bg);}
+</style>
+
+  /* Header */
+  .header{background:var(--bg);padding:calc(20px + var(--safe-top)) 20px 20px;position:relative;border-bottom:1px solid var(--border);}
+  .header__eyebrow{font-size:10px;letter-spacing:.18em;color:var(--gold);text-transform:uppercase;margin:0 0 6px;font-weight:500;}
+  .header__title{font-family:'Shippori Mincho',serif;font-weight:700;font-size:24px;letter-spacing:.04em;margin:0;color:var(--text);}
+  .gear{position:absolute;top:26px;right:18px;background:none;border:1px solid var(--border-hi);border-radius:8px;color:var(--text-sub);font-size:15px;cursor:pointer;width:34px;height:34px;display:flex;align-items:center;justify-content:center;}
+  .gear:hover{border-color:var(--gold);color:var(--gold);}
+
+  /* Tabs */
+  .tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);padding:0 12px;gap:4px;}
+  .tab{flex:1;text-align:center;padding:12px 4px;line-height:1.35;font-weight:500;color:var(--text-sub);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;position:relative;font-family:inherit;transition:color .18s;}
+  .tab__top{display:block;font-size:10px;letter-spacing:.05em;}
+  .tab__bottom{display:block;font-size:13px;margin-top:2px;font-weight:700;}
+  .tab.is-active{color:var(--text);}
+  .tab.is-active .tab__bottom{color:var(--gold);}
+  .tab.is-active{border-bottom-color:var(--gold);}
+
+  /* Date nav */
+  .date-nav{display:flex;align-items:center;gap:8px;padding:16px 16px 6px;}
+  .date-nav__arrow{border:1px solid var(--border-hi);background:var(--surface);width:34px;height:34px;border-radius:8px;font-size:16px;color:var(--text-sub);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .15s,color .15s;}
+  .date-nav__arrow:hover:not(:disabled){border-color:var(--gold);color:var(--gold);}
+  .date-nav__arrow:disabled{opacity:.25;cursor:default;}
+  .date-nav__today{margin-left:auto;font-size:11px;letter-spacing:.06em;color:var(--gold);border:1px solid var(--gold-dim);background:transparent;border-radius:20px;padding:6px 14px;cursor:pointer;font-family:inherit;font-weight:700;transition:background .15s;}
+  .date-nav__today:hover{background:rgba(200,169,110,.1);}
+  .date-strip{display:flex;gap:6px;padding:6px 16px 14px;overflow-x:auto;}
+  .day-chip{flex:1 0 auto;min-width:46px;border:1px solid var(--border);background:var(--surface);border-radius:10px;padding:6px 4px 8px;text-align:center;cursor:pointer;font-family:inherit;transition:border-color .15s,background .15s;}
+  .day-chip__wd{font-size:10px;color:var(--text-muted);display:block;letter-spacing:.05em;}
+  .day-chip__d{font-size:15px;font-weight:700;display:block;margin-top:2px;color:var(--text-sub);}
+  .day-chip.is-today .day-chip__d{color:var(--gold);}
+  .day-chip.is-selected{background:var(--gold);border-color:var(--gold);}
+  .day-chip.is-selected .day-chip__wd{color:rgba(0,0,0,.55);}
+  .day-chip.is-selected .day-chip__d{color:#000;}
+
+  .selected-date-label{padding:2px 16px 6px;font-size:12px;color:var(--text-sub);letter-spacing:.04em;}
+
+  /* Model pills */
+  .model-row{display:flex;gap:8px;padding:6px 16px 4px;}
+  .model-pill{flex:1;border:1px solid var(--border-hi);background:var(--surface);color:var(--text-sub);border-radius:30px;padding:10px 8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;text-align:center;}
+  .model-pill:hover{border-color:var(--gold);color:var(--gold);}
+  .model-pill.is-active{background:var(--gold);border-color:var(--gold);color:#000;}
+  .model-pill__note{display:block;font-size:10px;font-weight:500;margin-top:2px;opacity:.75;}
+
+  /* Slot cards */
+  .slots{display:flex;flex-direction:column;gap:10px;padding:10px 16px 6px;}
+  .slot-card{border:1px solid var(--border);border-radius:var(--radius);padding:16px;background:var(--surface);transition:border-color .15s;}
+  .slot-card:hover{border-color:var(--border-hi);}
+  .slot-card__head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .slot-card__label{font-weight:700;font-size:15px;color:var(--text);letter-spacing:.02em;}
+  .slot-card__remaining{font-size:12px;font-weight:700;letter-spacing:.03em;}
+  .slot-card__remaining.is-open{color:var(--success);}
+  .slot-card__remaining.is-full{color:var(--danger);}
+  .berths{margin:4px 0 12px;display:flex;gap:5px;flex-wrap:wrap;}
+  .berth{width:14px;height:20px;border:1.5px solid var(--border-hi);border-radius:3px;display:inline-block;}
+  .berth--full{background:var(--gold);border-color:var(--gold);}
+
+  /* Buttons */
+  .btn{font-family:inherit;border:none;border-radius:10px;padding:12px 16px;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.03em;transition:opacity .15s,transform .1s;}
+  .btn:active{transform:scale(.97);}
+  .btn--primary{background:var(--gold);color:#000;}
+  .btn--primary:hover{opacity:.88;}
+  .btn--primary:disabled{background:var(--surface2);color:var(--text-muted);cursor:default;transform:none;}
+  .btn--block{width:100%;}
+  .btn--ghost{background:transparent;color:var(--gold);border:1px solid var(--gold-dim);}
+  .btn--ghost:hover{border-color:var(--gold);background:rgba(200,169,110,.08);}
+  .btn--danger{background:var(--danger);color:var(--white);}
+  .btn--sm{padding:7px 11px;font-size:12px;border-radius:8px;}
+
+  /* Booking list */
+  .section-title{font-size:11px;font-weight:700;color:var(--text-muted);padding:18px 16px 8px;letter-spacing:.1em;text-transform:uppercase;}
+  .booking-list{padding:0 16px;display:flex;flex-direction:column;gap:8px;}
+  .booking-row{border:1px solid var(--border);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px;background:var(--surface);}
+  .booking-row__slot{font-size:11px;font-weight:700;color:#000;background:var(--gold);border-radius:6px;padding:4px 9px;white-space:nowrap;letter-spacing:.03em;}
+  .booking-row__main{flex:1;min-width:0;}
+  .booking-row__name{font-size:14px;font-weight:700;color:var(--text);}
+  .booking-row__meta{font-size:12px;color:var(--text-sub);margin-top:2px;}
+  .empty-note{padding:16px 16px;font-size:13px;color:var(--text-muted);}
+  .confirm-box{display:flex;align-items:center;gap:6px;}
+  .confirm-box span{font-size:12px;color:var(--danger);font-weight:700;}
+
+  /* Modal */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:flex-end;justify-content:center;z-index:50;backdrop-filter:blur(2px);}
+  .modal{background:var(--surface);width:100%;max-width:560px;border-radius:20px 20px 0 0;padding:24px 20px calc(32px + var(--safe-bottom));max-height:88vh;overflow-y:auto;border-top:1px solid var(--border-hi);}
+  .modal__title{font-family:'Shippori Mincho',serif;font-size:18px;font-weight:700;margin:0 0 4px;color:var(--text);}
+  .modal__sub{font-size:12px;color:var(--text-sub);margin:0 0 20px;}
+  .field{margin-bottom:16px;}
+  .field label{display:block;font-size:11px;font-weight:700;color:var(--text-sub);margin-bottom:6px;letter-spacing:.06em;text-transform:uppercase;}
+  .field input,.field textarea{width:100%;border:1px solid var(--border-hi);border-radius:10px;padding:12px 14px;font-size:14px;font-family:inherit;background:var(--surface2);color:var(--text);}
+  .field input:focus,.field textarea:focus{outline:none;border-color:var(--gold);}
+  .field textarea{resize:vertical;min-height:60px;}
+  .field--req label::after{content:' *';color:var(--gold);}
+  .modal__actions{display:flex;gap:10px;margin-top:8px;}
+  .modal__actions .btn{flex:1;}
+  .error-text{color:var(--danger);font-size:12px;margin:-10px 0 14px;display:none;}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--surface2);color:var(--text);border:1px solid var(--border-hi);padding:12px 20px;border-radius:30px;font-size:13px;z-index:100;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;}
+  .toast.show{opacity:1;}
+  .loading{padding:80px 20px;text-align:center;color:var(--text-muted);font-size:14px;}
+
+  /* 混雑度 */
+  .cong-bars{display:flex;gap:5px;margin:4px 0 12px;}
+  .cong-bar{flex:1;height:10px;border-radius:3px;background:var(--border-hi);}
+  .cong-bar.is-open{background:var(--success);}
+  .cong-bar.is-moderate{background:#D4A017;}
+  .cong-bar.is-busy{background:var(--danger);}
+  .slot-card__remaining.is-moderate{color:#D4A017;}
+  .slot-card__remaining.is-busy{color:var(--danger);}
+  .cong-count{font-size:11px;color:var(--text-muted);margin:-6px 0 12px;letter-spacing:.03em;}
+
+
+  /* 管理者パネル */
+  .admin-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:200;backdrop-filter:blur(4px);}
+  .admin-card{background:var(--surface);border:1px solid var(--border-hi);border-radius:20px;padding:28px 24px;width:90%;max-width:420px;}
+  .admin-card__title{font-family:'Shippori Mincho',serif;font-size:18px;font-weight:700;color:var(--text);margin:0 0 4px;}
+  .admin-card__sub{font-size:12px;color:var(--text-muted);margin:0 0 20px;}
+  .admin-panel{position:fixed;inset:0;background:var(--bg);z-index:180;overflow-y:auto;}
+  .admin-panel__header{background:var(--surface);border-bottom:1px solid var(--border);padding:calc(16px + var(--safe-top)) 18px 16px;display:flex;align-items:center;gap:12px;}
+  .admin-panel__title{font-family:'Shippori Mincho',serif;font-size:18px;font-weight:700;color:var(--gold);margin:0;flex:1;}
+  .admin-panel__logout{font-size:12px;color:var(--text-sub);background:none;border:1px solid var(--border-hi);border-radius:8px;padding:6px 12px;cursor:pointer;font-family:inherit;}
+  .admin-section{margin:18px 16px 0;}
+  .admin-section__title{font-size:10px;font-weight:700;letter-spacing:.12em;color:var(--text-muted);text-transform:uppercase;margin:0 0 10px;}
+  .admin-row{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px;margin-bottom:8px;}
+  .admin-row__label{flex:1;font-size:14px;color:var(--text);}
+  .admin-row__label small{display:block;font-size:11px;color:var(--text-muted);margin-top:2px;}
+  .admin-row input[type=number]{width:70px;background:var(--surface2);border:1px solid var(--border-hi);border-radius:8px;padding:8px 10px;font-size:15px;font-weight:700;color:var(--text);text-align:center;font-family:inherit;}
+  .admin-row input[type=number]:focus{outline:none;border-color:var(--gold);}
+  .admin-divider{height:1px;background:var(--border);margin:20px 16px 0;}
+  .admin-error{font-size:12px;color:var(--danger);margin:-4px 0 10px;display:none;}
+
+  /* 同伴者カウンター */
+  .counter-row{display:flex;align-items:center;gap:12px;margin-top:4px;}
+  .counter-btn{width:38px;height:38px;border-radius:50%;border:1px solid var(--gold-dim);background:var(--surface2);color:var(--gold);font-size:18px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;}
+  .counter-btn:hover{border-color:var(--gold);background:rgba(200,169,110,.1);}
+  .counter-val{font-size:22px;font-weight:700;color:var(--text);min-width:28px;text-align:center;}
+  .counter-unit{font-size:13px;color:var(--text-sub);}
+
+  /* オプション選択 */
+  .options-grid{display:flex;flex-direction:column;gap:8px;margin-top:4px;}
+  .opt-item{display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border-hi);border-radius:10px;padding:11px 14px;cursor:pointer;}
+  .opt-item input[type=checkbox]{width:18px;height:18px;accent-color:var(--gold);cursor:pointer;flex-shrink:0;}
+  .opt-label{font-size:13px;font-weight:500;color:var(--text);}
+  .opt-item:has(input:checked){border-color:var(--gold);background:rgba(200,169,110,.08);}
+  .booking-row__opts{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;}
+  .opt-tag{font-size:10px;font-weight:700;background:rgba(200,169,110,.15);color:var(--gold);border-radius:4px;padding:2px 6px;}
+
+  /* キャンセルポリシー */
+  .cancel-tel{display:inline-block;font-size:11px;font-weight:700;color:var(--gold);border:1px solid var(--gold-dim);border-radius:8px;padding:5px 8px;text-align:center;line-height:1.3;text-decoration:none;white-space:nowrap;}
+  .cancel-tel:hover{background:rgba(200,169,110,.1);}
+  .cancel-notice{margin:10px 0 4px;padding:12px 14px;background:var(--surface2);border:1px solid var(--border-hi);border-radius:10px;font-size:12px;color:var(--text-sub);line-height:1.7;}
+  .cancel-tel-link{color:var(--gold);font-weight:700;font-size:14px;text-decoration:none;display:inline-block;margin-top:4px;}
+  .cancel-tel-link:hover{opacity:.8;}
+</style>
+</head>
+<body>
+<div id="app"><div class="loading">読み込み中です…</div></div>
+<script>
+(function(){
+  "use strict";
+
+  var BOOKINGS_KEY = 'marina_bookings_v1';
+  var ADMIN_KEY = 'marina_admin_v1';
+  var SETTINGS_KEY = 'marina_settings_v1';
+  // 管理者認証情報はハッシュのみ保持（平文はコードに存在しない）
+  var DEFAULT_ADMIN_HASH = {
+    id: '9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0',
+    pw: '0ffe1abd1a08215353c233d6e009613e95eec4253832a761af28ff37ac5a150c'
+  };
+  var WEEKDAYS = ['日','月','火','水','木','金','土'];
+  var SLOT_LABEL = {am:'午前', pm:'午後', day:'一日'};
+  var TAB_LABEL = {
+    storage: {top:'艇庫/揚降会員様', bottom:'揚降予約'},
+    rental:  {top:'レンタル会員様',  bottom:'レンタル予約'}
+  };
+  var MODEL_LABEL = {seat2:'2人乗り', seat3:'3人乗り'};
+  var MODEL_SLOTS  = {seat2:['am','pm'], seat3:['am','pm','day']};
+
+  var state = {
+    tab: 'storage',
+    rentalModel: 'seat2',
+    weekOffset: 0,
+    selectedDate: toKey(new Date()),
+    bookings: {rental:[], storage:[]},
+    settings: {rental2Capacity:2, rental3Capacity:1, storageCapacity:5},
+    modal: null,
+    confirmingCancelId: null,
+    admin: {id: DEFAULT_ADMIN_HASH.id, pw: DEFAULT_ADMIN_HASH.pw},
+    settingsOpen: false,
+    adminOpen: false,
+    adminLogin: false,
+    adminLoginError: '',
+    adminPwSection: false,
+    loaded: false
+  };
+
+  function toKey(d){
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  function addDays(d,n){var r=new Date(d);r.setDate(r.getDate()+n);return r;}
+  function todayKey(){return toKey(new Date());}
+  function fmtLabel(key){
+    var p=key.split('-'),d=new Date(+p[0],+p[1]-1,+p[2]);
+    return (+p[1])+'月'+(+p[2])+'日（'+WEEKDAYS[d.getDay()]+'）';
+  }
+
+  // SHA-256ハッシュ（Web Crypto API）
+  function sha256(str){
+    var buf = new TextEncoder().encode(str);
+    return crypto.subtle.digest('SHA-256', buf).then(function(hash){
+      return Array.from(new Uint8Array(hash)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+    });
+  }
+
+  // ---------- storage ----------
+  // 起動時はlocalStorageから同期読み込み。window.storageへは保存時のみ非同期で試みる。
+  var DEFAULT_SETTINGS = {rental2Capacity:2, rental3Capacity:1, storageCapacity:5};
+
+  function lsGet(key){ try{ return localStorage.getItem(key); }catch(e){ return null; } }
+  function lsSet(key,val){ try{ localStorage.setItem(key,val); }catch(e){} }
+
+  function loadData(){
+    try{
+      var b=lsGet(BOOKINGS_KEY);
+      state.bookings = b ? JSON.parse(b) : {rental:[],storage:[]};
+    }catch(e){ state.bookings={rental:[],storage:[]}; }
+    if(!state.bookings.rental)  state.bookings.rental  = [];
+    if(!state.bookings.storage) state.bookings.storage = [];
+    state.bookings.rental.forEach(function(b){if(!b.model) b.model='seat3';});
+    state.bookings.storage.forEach(function(b){
+      if(!b.time) b.time = b.slot==='pm'?'13:00':'09:00';
+    });
+
+    try{
+      var ac=lsGet(ADMIN_KEY);
+      state.admin = ac ? JSON.parse(ac) : Object.assign({},DEFAULT_ADMIN_HASH);
+    }catch(e){ state.admin=Object.assign({},DEFAULT_ADMIN_HASH); }
+    try{
+      var s=lsGet(SETTINGS_KEY);
+      var l=s?JSON.parse(s):{};
+      state.settings={
+        rental2Capacity: l.rental2Capacity!==undefined?l.rental2Capacity:(l.rentalCapacity||DEFAULT_SETTINGS.rental2Capacity),
+        rental3Capacity: l.rental3Capacity!==undefined?l.rental3Capacity:DEFAULT_SETTINGS.rental3Capacity,
+        storageCapacity: l.storageCapacity!==undefined?l.storageCapacity:DEFAULT_SETTINGS.storageCapacity
+      };
+    }catch(e){ state.settings=Object.assign({},DEFAULT_SETTINGS); }
+  }
+
+  function saveBookings(){
+    lsSet(BOOKINGS_KEY, JSON.stringify(state.bookings));
+    // window.storageが使えれば並行して保存（失敗しても無視）
+    try{
+      if(typeof window.storage!=='undefined' && window.storage.set)
+        window.storage.set(BOOKINGS_KEY, JSON.stringify(state.bookings), true).catch(function(){});
+    }catch(e){}
+  }
+  function saveSettings(){
+    lsSet(SETTINGS_KEY, JSON.stringify(state.settings));
+    try{
+      if(typeof window.storage!=='undefined' && window.storage.set)
+        window.storage.set(SETTINGS_KEY, JSON.stringify(state.settings), true).catch(function(){});
+    }catch(e){}
+  }
+
+  function getCapacity(type,model){
+    if(type==='rental') return model==='seat2'?state.settings.rental2Capacity:state.settings.rental3Capacity;
+    return state.settings.storageCapacity;
+  }
+  function getUsage(type,model,dateKey){
+    var list=state.bookings[type].filter(function(b){
+      return b.date===dateKey&&(type!=='rental'||b.model===model);
+    });
+    var am=0,pm=0;
+    list.forEach(function(b){
+      if(b.slot==='am'||b.slot==='day') am++;
+      if(b.slot==='pm'||b.slot==='day') pm++;
+    });
+    return {am:am,pm:pm};
+  }
+  function getRemaining(type,model,dateKey,slot){
+    var cap=getCapacity(type,model),u=getUsage(type,model,dateKey);
+    if(slot==='am') return cap-u.am;
+    if(slot==='pm') return cap-u.pm;
+    return cap-Math.max(u.am,u.pm);
+  }
+  function getUsed(type,model,dateKey,slot){
+    var u=getUsage(type,model,dateKey);
+    if(slot==='am') return u.am;
+    if(slot==='pm') return u.pm;
+    return Math.max(u.am,u.pm);
+  }
+
+  var app=document.getElementById('app');
+
+  function render(){
+    if(!state.loaded){app.innerHTML='<div class="loading">読み込み中です…</div>';return;}
+    var html='';
+    html+=renderHeader();
+    html+=renderTabs();
+    html+=renderDateNav();
+    if(state.tab==='rental') html+=renderModelRow();
+    html+=renderSlots();
+    html+=renderBookingList();
+    app.innerHTML=html;
+    if(state.modal)        app.insertAdjacentHTML('beforeend',renderModal());
+    if(state.adminOpen)    app.insertAdjacentHTML('beforeend',renderAdminLayer());
+  }
+
+  function renderHeader(){
+    return '<div class="header">'+
+      '<button class="gear" data-action="open-admin" title="管理者">&#9881;</button>'+
+      '<p class="header__eyebrow">Sagara Marine</p>'+
+      '<h1 class="header__title">サーガラ各種予約</h1>'+
+    '</div>';
+  }
+
+  function renderTabs(){
+    return '<div class="tabs">'+
+      Object.keys(TAB_LABEL).map(function(key){
+        return '<button class="tab '+(state.tab===key?'is-active':'')+'" data-action="switch-tab" data-tab="'+key+'">'+
+          '<span class="tab__top">'+TAB_LABEL[key].top+'</span>'+
+          '<span class="tab__bottom">'+TAB_LABEL[key].bottom+'</span>'+
+        '</button>';
+      }).join('')+
+    '</div>';
+  }
+
+  function renderDateNav(){
+    var html='<div class="date-nav">'+
+      '<button class="date-nav__arrow" data-action="prev-week" '+(state.weekOffset<=0?'disabled':'')+'>&#8249;</button>'+
+      '<button class="date-nav__arrow" data-action="next-week" '+(state.weekOffset>=12?'disabled':'')+'>&#8250;</button>'+
+      '<button class="date-nav__today" data-action="goto-today">今日</button>'+
+    '</div><div class="date-strip">';
+    for(var i=0;i<7;i++){
+      var d=addDays(new Date(),state.weekOffset*7+i),key=toKey(d);
+      html+='<button class="day-chip '+(key===todayKey()?'is-today':'')+' '+(key===state.selectedDate?'is-selected':'')+'" data-action="select-date" data-date="'+key+'">'+
+        '<span class="day-chip__wd">'+WEEKDAYS[d.getDay()]+'</span>'+
+        '<span class="day-chip__d">'+d.getDate()+'</span>'+
+      '</button>';
+    }
+    return html+'</div><div class="selected-date-label">'+fmtLabel(state.selectedDate)+'　の空き状況</div>';
+  }
+
+  function renderModelRow(){
+    return '<div class="model-row">'+
+      Object.keys(MODEL_LABEL).map(function(m){
+        return '<button class="model-pill '+(state.rentalModel===m?'is-active':'')+'" data-action="switch-model" data-model="'+m+'">'+
+          MODEL_LABEL[m]+(m==='seat2'?'<span class="model-pill__note">午前・午後のみ</span>':'')+
+        '</button>';
+      }).join('')+
+    '</div>';
+  }
+
+  function renderBerths(used,cap){
+    var h='<div class="berths">';
+    for(var i=0;i<cap;i++) h+='<span class="berth '+(i<used?'berth--full':'')+'"></span>';
+    return h+'</div>';
+  }
+
+  function renderSlots(){
+    var type=state.tab,isPast=state.selectedDate<todayKey();
+    if(type==='storage'){
+      var used=state.bookings.storage.filter(function(b){return b.date===state.selectedDate;}).length;
+      var congLabel,congClass;
+      if(used>=20){congLabel='混雑';congClass='is-busy';}
+      else if(used>=10){congLabel='やや混雑';congClass='is-moderate';}
+      else{congLabel='空いています';congClass='is-open';}
+      var bars='<div class="cong-bars">';
+      for(var i=0;i<5;i++){
+        var filled = (used>=20&&i<5)||(used>=10&&i<3)||(used<10&&i<1);
+        bars+='<span class="cong-bar '+(filled?congClass:'')+'"></span>';
+      }
+      bars+='</div>';
+      return '<div class="slots"><div class="slot-card">'+
+        '<div class="slot-card__head">'+
+          '<span class="slot-card__label">揚降受付</span>'+
+          '<span class="slot-card__remaining '+congClass+'">'+congLabel+'</span>'+
+        '</div>'+
+        bars+
+        '<div class="cong-count">本日の予約件数：'+used+'組</div>'+
+        '<button class="btn btn--primary btn--block" data-action="open-book" data-slot="visit" '+(isPast?'disabled':'')+'>'+(isPast?'受付終了':'予約する（来店時刻を選択）')+'</button>'+
+      '</div></div>';
+    }
+    var model=state.rentalModel,html='<div class="slots">';
+    MODEL_SLOTS[model].forEach(function(slot){
+      var rem=getRemaining(type,model,state.selectedDate,slot);
+      var used=getUsed(type,model,state.selectedDate,slot);
+      var cap=getCapacity(type,model),full=rem<=0;
+      html+='<div class="slot-card">'+
+        '<div class="slot-card__head">'+
+          '<span class="slot-card__label">'+SLOT_LABEL[slot]+'</span>'+
+          '<span class="slot-card__remaining '+(full?'is-full':'is-open')+'">'+(full?'満席':'空き '+rem)+'</span>'+
+        '</div>'+
+        renderBerths(used,cap)+
+        '<button class="btn btn--primary btn--block" data-action="open-book" data-slot="'+slot+'" '+((full||isPast)?'disabled':'')+'>'+(isPast?'受付終了':'予約する')+'</button>'+
+      '</div>';
+    });
+    return html+'</div>';
+  }
+
+  function renderBookingList(){
+    var type=state.tab,model=type==='rental'?state.rentalModel:null;
+    var list=state.bookings[type].filter(function(b){
+      return b.date===state.selectedDate&&(type!=='rental'||b.model===model);
+    });
+    if(type==='storage') list.sort(function(a,b){return (a.time||'').localeCompare(b.time||'');});
+    else{ var o={am:0,pm:1,day:2}; list.sort(function(a,b){return o[a.slot]-o[b.slot];}); }
+    var html='<div class="section-title">この日の予約一覧'+(type==='rental'?'（'+MODEL_LABEL[model]+'）':'')+'</div>';
+    if(!list.length) return html+'<div class="empty-note">まだ予約はありません。</div>';
+
+    // レンタルの場合：予約日の1週間前（7日前）を過ぎているかチェック
+    var isWithinWeek = false;
+    if(type==='rental'){
+      var p=state.selectedDate.split('-');
+      var bookDate=new Date(+p[0],+p[1]-1,+p[2]);
+      var deadline=new Date(bookDate);
+      deadline.setDate(deadline.getDate()-7);
+      isWithinWeek = new Date() > deadline; // 今日がデッドラインを超えていたら電話のみ
+    }
+
+    html+='<div class="booking-list">';
+    list.forEach(function(b){
+      var badge=type==='storage'?(b.time||'--:--'):SLOT_LABEL[b.slot];
+      html+='<div class="booking-row">'+
+        '<span class="booking-row__slot">'+badge+'</span>'+
+        '<div class="booking-row__main">'+
+          '<div class="booking-row__name">'+escapeHtml(b.name)+'</div>'+
+          '<div class="booking-row__meta">'+escapeHtml(b.phone)+(b.boatInfo?'　・　'+escapeHtml(b.boatInfo):'')+
+          (type==='rental'&&b.guests?'　・　同伴者 '+b.guests+'名':'')+
+          (b.options&&b.options.length?'<div class="booking-row__opts">'+b.options.map(function(o){return '<span class="opt-tag">'+escapeHtml(o)+'</span>';}).join('')+'</div>':'')+
+          '</div>'+
+        '</div>';
+      if(type==='rental' && isWithinWeek){
+        // 1週間以内：電話キャンセルのみ
+        html+='<a href="tel:0569370039" class="cancel-tel">📞 電話<br>キャンセル</a>';
+      } else if(state.confirmingCancelId===b.id){
+        html+='<div class="confirm-box"><span>取消す？</span>'+
+          '<button class="btn btn--danger btn--sm" data-action="confirm-cancel" data-id="'+b.id+'">削除</button>'+
+          '<button class="btn btn--ghost btn--sm" data-action="abort-cancel">戻る</button></div>';
+      } else {
+        html+='<button class="btn btn--ghost btn--sm" data-action="ask-cancel" data-id="'+b.id+'">キャンセル</button>';
+      }
+      html+='</div>';
+    });
+
+    if(type==='rental' && isWithinWeek){
+      html+='<div class="cancel-notice">'+
+        '⚠️ 予約日まで1週間を切っています。キャンセルはお電話にて承ります。<br>'+
+        '<a href="tel:0569370039" class="cancel-tel-link">📞 0569-37-0039</a>'+
+      '</div>';
+    }
+
+    return html+'</div>';
+  }
+
+  var RENTAL_OPTIONS = [
+    'トーイングチューブ 1人乗り',
+    'トーイングチューブ 2人乗り',
+    'ウエイクボードセット',
+    'ウエイクサーフィンセット'
+  ];
+
+  function renderModal(){
+    var type=state.tab,model=type==='rental'?state.rentalModel:null;
+    var subLabel=type==='storage'?'来店時刻をご指定ください':SLOT_LABEL[state.modal.slot];
+    var optionsHtml='';
+    if(type==='rental'){
+      optionsHtml='<div class="field"><label>オプション（複数選択可）</label>'+
+        '<div class="options-grid">'+
+        RENTAL_OPTIONS.map(function(opt,i){
+          return '<label class="opt-item">'+
+            '<input type="checkbox" class="opt-cb" value="'+escapeHtml(opt)+'">'+
+            '<span class="opt-label">'+escapeHtml(opt)+'</span>'+
+          '</label>';
+        }).join('')+
+        '</div></div>';
+    }
+    return '<div class="overlay" data-action="close-modal">'+
+      '<div class="modal" onclick="event.stopPropagation()">'+
+        '<p class="modal__title">'+TAB_LABEL[type].bottom+(model?'　'+MODEL_LABEL[model]:'')+'の予約</p>'+
+        '<p class="modal__sub">'+fmtLabel(state.selectedDate)+'　'+subLabel+'</p>'+
+        (type==='storage'?'<div class="field field--req"><label>来店予定時刻（9:00〜15:00）</label><input type="time" id="f-time" step="300" min="09:00" max="15:00"></div>':'')+
+        '<div class="field field--req"><label>お名前</label><input type="text" id="f-name" placeholder="山田 太郎"></div>'+
+        '<div class="field field--req"><label>電話番号</label><input type="tel" id="f-phone" placeholder="090-0000-0000"></div>'+
+        (type==='storage'?'<div class="field"><label>艇名・係留番号（任意）</label><input type="text" id="f-boat" placeholder="例：いるか丸 / B-12"></div>':'')+
+        (type==='rental'?'<div class="field"><label>同伴者様の人数（ご本人を除く）</label><div class="counter-row"><button type="button" class="counter-btn" data-counter="minus">－</button><span class="counter-val" id="f-guests-val">0</span><input type="hidden" id="f-guests" value="0"><button type="button" class="counter-btn" data-counter="plus">＋</button><span class="counter-unit">名</span></div></div>':'')+
+        optionsHtml+
+        '<div class="field"><label>メモ・備考（任意）</label><textarea id="f-note" placeholder="ご要望があればご記入ください"></textarea></div>'+
+        '<p class="error-text" id="f-error">'+(type==='storage'?'来店時刻（9:00〜15:00）・':'')+'お名前・電話番号をご入力ください。</p>'+
+        '<div class="modal__actions">'+
+          '<button class="btn btn--ghost" data-action="close-modal">やめる</button>'+
+          '<button class="btn btn--primary" data-action="submit-booking">予約を確定する</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }
+
+  function renderAdminLayer(){
+    if(!state.adminLogin){
+      // ログイン画面
+      return '<div class="admin-overlay">'+
+        '<div class="admin-card">'+
+          '<p class="admin-card__title">&#9881; 管理者ログイン</p>'+
+          '<p class="admin-card__sub">管理者IDとパスワードを入力してください</p>'+
+          '<div class="field field--req"><label>管理者ID</label><input type="text" id="adm-id" placeholder="0000" autocomplete="off"></div>'+
+          '<div class="field field--req"><label>パスワード</label><input type="password" id="adm-pw" placeholder="••••"></div>'+
+          '<p class="admin-error" id="adm-err">IDまたはパスワードが違います</p>'+
+          '<div class="modal__actions">'+
+            '<button class="btn btn--ghost" data-action="close-admin">キャンセル</button>'+
+            '<button class="btn btn--primary" data-action="do-admin-login">ログイン</button>'+
+          '</div>'+
+        '</div>'+
+      '</div>';
+    }
+    // 管理パネル
+    var pwSec = state.adminPwSection;
+    return '<div class="admin-panel">'+
+      '<div class="admin-panel__header">'+
+        '<p class="admin-panel__title">管理者パネル</p>'+
+        '<button class="admin-panel__logout" data-action="close-admin">閉じる</button>'+
+      '</div>'+
+
+      '<div class="admin-section">'+
+        '<p class="admin-section__title">受付可能台数 / 件数</p>'+
+        '<div class="admin-row">'+
+          '<div class="admin-row__label">水上バイク　2人乗り<small>午前・午後の各枠で受付できる最大台数</small></div>'+
+          '<input type="number" min="0" id="s-rental2" value="'+state.settings.rental2Capacity+'">'+
+        '</div>'+
+        '<div class="admin-row">'+
+          '<div class="admin-row__label">水上バイク　3人乗り<small>午前・午後・一日の各枠で受付できる最大台数</small></div>'+
+          '<input type="number" min="0" id="s-rental3" value="'+state.settings.rental3Capacity+'">'+
+        '</div>'+
+        '<button class="btn btn--primary" style="margin:4px 0 0;width:100%" data-action="save-settings">台数設定を保存する</button>'+
+      '</div>'+
+
+      '<div class="admin-divider"></div>'+
+
+      '<div class="admin-section">'+
+        '<p class="admin-section__title">管理者ID・パスワード変更</p>'+
+        (!pwSec ?
+          '<button class="btn btn--ghost" style="width:100%" data-action="open-pw-section">変更する</button>'
+        :
+          '<p style="font-size:12px;color:var(--text-sub);margin:0 0 12px;">現在のIDとパスワードで認証後、新しいものを設定します</p>'+
+          '<div class="field field--req"><label>現在の管理者ID</label><input type="text" id="pw-cur-id" autocomplete="off"></div>'+
+          '<div class="field field--req"><label>現在のパスワード</label><input type="password" id="pw-cur-pw"></div>'+
+          '<div class="field field--req"><label>新しい管理者ID</label><input type="text" id="pw-new-id" autocomplete="off"></div>'+
+          '<div class="field field--req"><label>新しいパスワード</label><input type="password" id="pw-new-pw"></div>'+
+          '<p class="admin-error" id="pw-err">現在のIDまたはパスワードが違います</p>'+
+          '<div class="modal__actions">'+
+            '<button class="btn btn--ghost" data-action="close-pw-section">キャンセル</button>'+
+            '<button class="btn btn--primary" data-action="save-admin-pw">変更を確定する</button>'+
+          '</div>'
+        )+
+      '</div>'+
+
+      '<div style="padding:24px 16px;">'+
+        '<button class="btn btn--danger" style="width:100%;opacity:.7" data-action="admin-logout">ログアウト</button>'+
+      '</div>'+
+    '</div>';
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});
+  }
+  function showToast(msg){
+    var t=document.createElement('div');t.className='toast';t.textContent=msg;
+    document.body.appendChild(t);
+    requestAnimationFrame(function(){t.classList.add('show');});
+    setTimeout(function(){t.classList.remove('show');setTimeout(function(){t.remove();},300);},2200);
+  }
+
+  app.addEventListener('click',function(e){
+    var el=e.target.closest('[data-action]');if(!el) return;
+    var a=el.dataset.action;
+    if(a==='switch-tab'){state.tab=el.dataset.tab;state.confirmingCancelId=null;render();}
+    else if(a==='switch-model'){state.rentalModel=el.dataset.model;state.confirmingCancelId=null;render();}
+    else if(a==='prev-week'){if(state.weekOffset>0){state.weekOffset--;render();}}
+    else if(a==='next-week'){if(state.weekOffset<12){state.weekOffset++;render();}}
+    else if(a==='goto-today'){state.weekOffset=0;state.selectedDate=todayKey();render();}
+    else if(a==='select-date'){state.selectedDate=el.dataset.date;render();}
+    else if(a==='open-book'){state.modal={slot:el.dataset.slot};render();}
+    else if(a==='close-modal'){state.modal=null;render();}
+    else if(a==='submit-booking'){handleSubmit();}
+    else if(a==='ask-cancel'){state.confirmingCancelId=el.dataset.id;render();}
+    else if(a==='abort-cancel'){state.confirmingCancelId=null;render();}
+    else if(a==='confirm-cancel'){handleCancel(el.dataset.id);}
+    else if(a==='open-admin'){state.adminOpen=true;state.adminLogin=false;state.adminLoginError='';state.adminPwSection=false;render();}
+    else if(a==='close-admin'){state.adminOpen=false;state.adminLogin=false;state.adminPwSection=false;render();}
+    else if(a==='admin-logout'){state.adminLogin=false;state.adminPwSection=false;render();}
+    else if(a==='do-admin-login'){handleAdminLogin();}
+    else if(a==='save-settings'){handleSaveSettings();}
+    else if(a==='open-pw-section'){state.adminPwSection=true;render();}
+    else if(a==='close-pw-section'){state.adminPwSection=false;render();}
+    else if(a==='save-admin-pw'){handleSaveAdminPw();}
+  });
+
+  // 同伴者カウンター（data-counterはdata-actionと別属性）
+  app.addEventListener('click',function(e){
+    var el=e.target.closest('[data-counter]');if(!el) return;
+    var valEl=document.getElementById('f-guests-val');
+    var hidEl=document.getElementById('f-guests');
+    if(!valEl||!hidEl) return;
+    var cur=parseInt(hidEl.value)||0;
+    cur = el.dataset.counter==='plus' ? cur+1 : Math.max(0,cur-1);
+    hidEl.value=cur; valEl.textContent=cur;
+  });
+
+  function handleSubmit(){
+    var type=state.tab;
+    var name=(document.getElementById('f-name')||{value:''}).value.trim();
+    var phone=(document.getElementById('f-phone')||{value:''}).value.trim();
+    var boatEl=document.getElementById('f-boat');
+    var boatInfo=boatEl?boatEl.value.trim():'';
+    var note=(document.getElementById('f-note')||{value:''}).value.trim();
+    var errEl=document.getElementById('f-error');
+    var timeEl=document.getElementById('f-time');
+    var time=timeEl?timeEl.value:null;
+    var timeInvalid=type==='storage'&&time&&(time<'09:00'||time>'15:00');
+    if(!name||!phone||(type==='storage'&&!time)||timeInvalid){errEl.style.display='block';return;}
+    errEl.style.display='none';
+    var booking={
+      id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),
+      date:state.selectedDate,name:name,phone:phone,boatInfo:boatInfo,note:note,
+      createdAt:new Date().toISOString()
+    };
+    if(type==='rental'){
+      var cbs=document.querySelectorAll('.opt-cb:checked');
+      var opts=[];
+      for(var i=0;i<cbs.length;i++) opts.push(cbs[i].value);
+      if(opts.length) booking.options=opts;
+      var gEl=document.getElementById('f-guests');
+      booking.guests=gEl?parseInt(gEl.value)||0:0;
+    }
+    if(type==='storage'){
+      var cap=state.settings.storageCapacity;
+      var used=state.bookings.storage.filter(function(b){return b.date===state.selectedDate;}).length;
+      if(cap-used<=0){showToast('ちょうど満席になりました');state.modal=null;render();return;}
+      booking.time=time;
+    } else {
+      var model=state.rentalModel,slot=state.modal.slot;
+      if(getRemaining(type,model,state.selectedDate,slot)<=0){showToast('ちょうど満席になりました');state.modal=null;render();return;}
+      booking.slot=slot;booking.model=model;
+    }
+    state.bookings[type].push(booking);
+    state.modal=null;render();
+    saveBookings();showToast('予約を受け付けました');
+  }
+
+  function handleCancel(id){
+    var type=state.tab;
+    state.bookings[type]=state.bookings[type].filter(function(b){return b.id!==id;});
+    state.confirmingCancelId=null;render();
+    saveBookings();showToast('予約を取消しました');
+  }
+
+  function handleAdminLogin(){
+    var id=(document.getElementById('adm-id')||{value:''}).value.trim();
+    var pw=(document.getElementById('adm-pw')||{value:''}).value;
+    if(!id||!pw){ document.getElementById('adm-err').style.display='block'; return; }
+    Promise.all([sha256(id), sha256(pw)]).then(function(hashes){
+      if(hashes[0]===state.admin.id && hashes[1]===state.admin.pw){
+        state.adminLogin=true; render();
+      } else {
+        document.getElementById('adm-err').style.display='block';
+      }
+    });
+  }
+
+  function handleSaveAdminPw(){
+    var curId=(document.getElementById('pw-cur-id')||{value:''}).value.trim();
+    var curPw=(document.getElementById('pw-cur-pw')||{value:''}).value;
+    var newId=(document.getElementById('pw-new-id')||{value:''}).value.trim();
+    var newPw=(document.getElementById('pw-new-pw')||{value:''}).value;
+    var errEl=document.getElementById('pw-err');
+    if(!newId||!newPw){ errEl.textContent='新しいIDとパスワードを入力してください'; errEl.style.display='block'; return; }
+    // 現在のID・PWをハッシュ照合してから新しい値をハッシュ保存
+    Promise.all([sha256(curId), sha256(curPw)]).then(function(curHashes){
+      if(curHashes[0]!==state.admin.id || curHashes[1]!==state.admin.pw){
+        errEl.textContent='現在のIDまたはパスワードが違います'; errEl.style.display='block'; return;
+      }
+      return Promise.all([sha256(newId), sha256(newPw)]).then(function(newHashes){
+        state.admin={id:newHashes[0], pw:newHashes[1]};
+        lsSet(ADMIN_KEY, JSON.stringify(state.admin));
+        state.adminPwSection=false; render();
+        showToast('管理者情報を変更しました');
+      });
+    });
+  }
+
+  function handleSaveSettings(){
+    var r2=parseInt((document.getElementById('s-rental2')||{value:''}).value,10);
+    var r3=parseInt((document.getElementById('s-rental3')||{value:''}).value,10);
+    state.settings.rental2Capacity=isNaN(r2)?state.settings.rental2Capacity:Math.max(0,r2);
+    state.settings.rental3Capacity=isNaN(r3)?state.settings.rental3Capacity:Math.max(0,r3);
+    render();
+    saveSettings();showToast('設定を保存しました');
+  }
+
+  loadData();
+  state.loaded=true;
+  render();
+})();
+</script>
+</body>
+</html>
