@@ -708,7 +708,7 @@
         '</div></div>';
     }
     return '<div class="overlay" data-action="close-modal">'+
-      '<div class="modal" onclick="event.stopPropagation()">'+
+      '<div class="modal" data-action="modal-inner">'+
         '<p class="modal__title">'+TAB_LABEL[type].bottom+(model?'　'+MODEL_LABEL[model]:'')+'の予約</p>'+
         '<p class="modal__sub">'+fmtLabel(state.selectedDate)+'　'+subLabel+'</p>'+
         (type==='storage'?
@@ -1078,7 +1078,8 @@
   document.addEventListener('click',function(e){
     var el=e.target.closest('[data-action]');if(!el) return;
     var a=el.dataset.action;
-    if(a==='switch-tab'){state.tab=el.dataset.tab;state.confirmingCancelId=null;render();}
+    if(a==='modal-inner'){ e.stopPropagation(); return; }
+    else if(a==='switch-tab'){state.tab=el.dataset.tab;state.confirmingCancelId=null;render();}
     else if(a==='switch-model'){state.rentalModel=el.dataset.model;state.confirmingCancelId=null;render();}
     else if(a==='prev-week'){if(state.weekOffset>0){state.weekOffset--;render();}}
     else if(a==='next-week'){if(state.weekOffset<12){state.weekOffset++;render();}}
