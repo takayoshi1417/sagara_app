@@ -1065,7 +1065,9 @@
   }
 
   document.addEventListener('click',function(e){
-    var el=e.target.closest('[data-action]');if(!el) return;
+    var el=e.target.closest('[data-action]');
+    console.log('click:', e.target.tagName, el ? el.dataset.action : 'no-action');
+    if(!el) return;
     var a=el.dataset.action;
     if(a==='switch-tab'){state.tab=el.dataset.tab;state.confirmingCancelId=null;render();}
     else if(a==='switch-model'){state.rentalModel=el.dataset.model;state.confirmingCancelId=null;render();}
