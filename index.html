@@ -288,8 +288,26 @@
 </head>
 <body>
 <div id="app"><div class="loading">読み込み中です…</div></div>
-<script>
-(function(){
+<script type="module">
+  // -------- Firebase 初期化 --------
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
+  import {
+    getFirestore, doc, getDoc, setDoc,
+    collection, getDocs, deleteDoc
+  } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCAFPt3151M4gnHuWh9eGO4cTMLTjGI8rI",
+    authDomain: "sagara-app.firebaseapp.com",
+    projectId: "sagara-app",
+    storageBucket: "sagara-app.firebasestorage.app",
+    messagingSenderId: "19614810316",
+    appId: "1:19614810316:web:f2675276b165e54cd54269"
+  };
+  const fbApp = initializeApp(firebaseConfig);
+  const db    = getFirestore(fbApp);
+
+(async function(){
   "use strict";
 
   var BOOKINGS_KEY = 'marina_bookings_v1';
@@ -365,22 +383,31 @@
   function lsGet(key){ try{ return localStorage.getItem(key); }catch(e){ return null; } }
   function lsSet(key,val){ try{ localStorage.setItem(key,val); }catch(e){} }
 
-  function loadData(){
+  async function loadData(){
+    // 予約データ（レンタル）
     try{
-      var b=lsGet(BOOKINGS_KEY);
-      state.bookings = b ? JSON.parse(b) : {rental:[],storage:[]};
-    }catch(e){ state.bookings={rental:[],storage:[]}; }
-    if(!state.bookings.rental)  state.bookings.rental  = [];
-    if(!state.bookings.storage) state.bookings.storage = [];
-    state.bookings.rental.forEach(function(b){if(!b.model) b.model='seat3';});
-    state.bookings.storage.forEach(function(b){
-      if(!b.time) b.time = b.slot==='pm'?'13:00':'09:00';
-    });
+      var rentalSnap = await getDocs(collection(db,'bookings_rental'));
+      state.bookings.rental=[];
+      rentalSnap.forEach(function(d){ var b=d.data(); b.id=d.id; state.bookings.rental.push(b); });
+      state.bookings.rental.forEach(function(b){if(!b.model) b.model='seat3';});
+    }catch(e){ state.bookings.rental=[]; }
 
+    // 予約データ（揚降）
     try{
-      var mb=lsGet(MEMBERS_KEY);
-      state.members=mb?JSON.parse(mb):[];
-    }catch(e){state.members=[];}
+      var storageSnap = await getDocs(collection(db,'bookings_storage'));
+      state.bookings.storage=[];
+      storageSnap.forEach(function(d){ var b=d.data(); b.id=d.id; state.bookings.storage.push(b); });
+      state.bookings.storage.forEach(function(b){if(!b.time) b.time='09:00';});
+    }catch(e){ state.bookings.storage=[]; }
+
+    // 会員データ
+    try{
+      var membersSnap = await getDocs(collection(db,'members'));
+      state.members=[];
+      membersSnap.forEach(function(d){ var m=d.data(); m.id=d.id; state.members.push(m); });
+    }catch(e){ state.members=[]; }
+
+    // セッション復元
     try{
       var ss=lsGet(SESSION_KEY);
       if(ss){
@@ -389,45 +416,53 @@
         if(found) state.currentMember=found;
       }
     }catch(e){}
+
+    // 管理者認証情報
     try{
-      var ac=lsGet(ADMIN_KEY);
-      state.admin = ac ? JSON.parse(ac) : Object.assign({},DEFAULT_ADMIN_HASH);
+      var adminDoc = await getDoc(doc(db,'admin','credentials'));
+      state.admin = adminDoc.exists() ? adminDoc.data() : Object.assign({},DEFAULT_ADMIN_HASH);
     }catch(e){ state.admin=Object.assign({},DEFAULT_ADMIN_HASH); }
+
+    // 設定
     try{
-      var s=lsGet(SETTINGS_KEY);
-      var l=s?JSON.parse(s):{};
+      var settingsDoc = await getDoc(doc(db,'settings','main'));
+      var l = settingsDoc.exists() ? settingsDoc.data() : {};
       state.settings={
-        rental2Capacity: l.rental2Capacity!==undefined?l.rental2Capacity:(l.rentalCapacity||DEFAULT_SETTINGS.rental2Capacity),
+        rental2Capacity: l.rental2Capacity!==undefined?l.rental2Capacity:DEFAULT_SETTINGS.rental2Capacity,
         rental3Capacity: l.rental3Capacity!==undefined?l.rental3Capacity:DEFAULT_SETTINGS.rental3Capacity,
         storageCapacity: l.storageCapacity!==undefined?l.storageCapacity:DEFAULT_SETTINGS.storageCapacity
       };
     }catch(e){ state.settings=Object.assign({},DEFAULT_SETTINGS); }
   }
 
-  function saveBookings(){
-    lsSet(BOOKINGS_KEY, JSON.stringify(state.bookings));
-    // window.storageが使えれば並行して保存（失敗しても無視）
+  async function saveBooking(type, booking){
     try{
-      if(typeof window.storage!=='undefined' && window.storage.set)
-        window.storage.set(BOOKINGS_KEY, JSON.stringify(state.bookings), true).catch(function(){});
-    }catch(e){}
+      var col = type==='rental' ? 'bookings_rental' : 'bookings_storage';
+      var data = Object.assign({}, booking);
+      var id = data.id; delete data.id;
+      await setDoc(doc(db, col, id), data);
+    }catch(e){ showToast('保存に失敗しました'); }
   }
-  function saveMembers(){
-    lsSet(MEMBERS_KEY,JSON.stringify(state.members));
-  }
-  function saveSession(id){
-    lsSet(SESSION_KEY,JSON.stringify({id:id}));
-  }
-  function clearSession(){
-    try{localStorage.removeItem('l_'+SESSION_KEY);}catch(e){}
-  }
-
-  function saveSettings(){
-    lsSet(SETTINGS_KEY, JSON.stringify(state.settings));
+  async function deleteBooking(type, id){
     try{
-      if(typeof window.storage!=='undefined' && window.storage.set)
-        window.storage.set(SETTINGS_KEY, JSON.stringify(state.settings), true).catch(function(){});
-    }catch(e){}
+      var col = type==='rental' ? 'bookings_rental' : 'bookings_storage';
+      await deleteDoc(doc(db, col, id));
+    }catch(e){ showToast('削除に失敗しました'); }
+  }
+  async function saveMember(member){
+    try{
+      var data = Object.assign({}, member);
+      var id = data.id; delete data.id;
+      await setDoc(doc(db,'members',id), data);
+    }catch(e){ showToast('会員情報の保存に失敗しました'); }
+  }
+  function saveSession(id){ lsSet(SESSION_KEY,JSON.stringify({id:id})); }
+  function clearSession(){ try{localStorage.removeItem(SESSION_KEY);}catch(e){} }
+  async function saveSettings(){
+    try{ await setDoc(doc(db,'settings','main'), state.settings); }catch(e){}
+  }
+  async function saveAdminCredentials(){
+    try{ await setDoc(doc(db,'admin','credentials'), state.admin); }catch(e){}
   }
 
   function getCapacity(type,model){
@@ -1111,7 +1146,6 @@
     errEl.style.display='none';
 
     var booking={
-      id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),
       date:state.selectedDate,name:name,phone:phone,note:note,
       createdAt:new Date().toISOString()
     };
@@ -1132,16 +1166,18 @@
       if(getRemaining(type,model,state.selectedDate,slot)<=0){showToast('ちょうど満席になりました');state.modal=null;render();return;}
       booking.slot=slot;booking.model=model;
     }
+    var newId = Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+    booking.id = newId;
     state.bookings[type].push(booking);
     state.modal=null;render();
-    saveBookings();showToast('ご予約が完了しました', 'success');
+    saveBooking(type, booking).then(function(){ showToast('ご予約が完了しました','success'); });
   }
 
   function handleCancel(id){
     var type=state.tab;
     state.bookings[type]=state.bookings[type].filter(function(b){return b.id!==id;});
     state.confirmingCancelId=null;render();
-    saveBookings();showToast('予約を取消しました');
+    deleteBooking(type,id).then(function(){ showToast('予約を取消しました'); });
   }
 
 
@@ -1183,8 +1219,7 @@
       state.members.push(member);
       state.currentMember=member;
       render();
-      saveMembers();saveSession(member.id);
-      showToast('会員登録が完了しました','success');
+      saveMember(member).then(function(){ saveSession(member.id); showToast('会員登録が完了しました','success'); });
     });
   }
 
@@ -1199,22 +1234,23 @@
   function handleMyCancel(type,id){
     state.bookings[type]=state.bookings[type].filter(function(b){return b.id!==id;});
     state.myConfirmCancel=null;render();
-    saveBookings();showToast('予約を取消しました');
+    deleteBooking(type,id).then(function(){ showToast('予約を取消しました'); });
   }
 
   function handleAdminConfirm(type, id){
     var list=state.bookings[type];
+    var booking=null;
     for(var i=0;i<list.length;i++){
-      if(list[i].id===id){ list[i].confirmed=true; break; }
+      if(list[i].id===id){ list[i].confirmed=true; booking=list[i]; break; }
     }
     render();
-    saveBookings();showToast('予約を確定しました');
+    if(booking) saveBooking(type, booking).then(function(){ showToast('予約を確定しました'); });
   }
 
   function handleAdminCancel(type, id){
     state.bookings[type]=state.bookings[type].filter(function(b){return b.id!==id;});
     state.adminConfirmCancel=null;render();
-    saveBookings();showToast('予約を取消しました');
+    deleteBooking(type,id).then(function(){ showToast('予約を取消しました'); });
   }
 
   function handleAdminLogin(){
@@ -1244,9 +1280,8 @@
       }
       return Promise.all([sha256(newId), sha256(newPw)]).then(function(newHashes){
         state.admin={id:newHashes[0], pw:newHashes[1]};
-        lsSet(ADMIN_KEY, JSON.stringify(state.admin));
         state.adminPwSection=false; render();
-        showToast('管理者情報を変更しました');
+        saveAdminCredentials().then(function(){ showToast('管理者情報を変更しました'); });
       });
     });
   }
@@ -1257,10 +1292,15 @@
     state.settings.rental2Capacity=isNaN(r2)?state.settings.rental2Capacity:Math.max(0,r2);
     state.settings.rental3Capacity=isNaN(r3)?state.settings.rental3Capacity:Math.max(0,r3);
     render();
-    saveSettings();showToast('設定を保存しました');
+    saveSettings().then(function(){ showToast('設定を保存しました'); });
   }
 
-  loadData();
+  try{
+    await Promise.race([
+      loadData(),
+      new Promise(function(resolve){ setTimeout(resolve, 5000); }) // 5秒でタイムアウト
+    ]);
+  }catch(e){ console.warn('loadData error:', e); }
   state.loaded=true;
   render();
 })();
