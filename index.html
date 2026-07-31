@@ -80,6 +80,16 @@
 
   .selected-date-label{padding:2px 16px 6px;font-size:12px;color:var(--text-sub);letter-spacing:.04em;}
 
+  /* 日付ビュー切り替え */
+  .date-view-bar{display:flex;align-items:center;padding:10px 14px 0;gap:8px;}
+  .date-view-toggle{display:flex;border:1px solid var(--border-hi);border-radius:8px;overflow:hidden;flex-shrink:0;}
+  .view-toggle-btn{padding:6px 12px;font-size:12px;font-weight:700;border:none;background:var(--surface);color:var(--text-muted);cursor:pointer;font-family:inherit;}
+  .view-toggle-btn.is-active{background:var(--brown);color:#fff;}
+  .user-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;padding:8px 12px 12px;}
+  .cal-cell.is-disabled{opacity:.3;cursor:default;pointer-events:none;}
+  .day-chip.is-disabled{opacity:.3;cursor:default;}
+  .day-chip:disabled{opacity:.3;cursor:default;}
+
   /* Model pills */
   .model-row{display:flex;gap:8px;padding:6px 16px 4px;}
   .model-pill{flex:1;border:1px solid var(--border-hi);background:var(--surface);color:var(--text-sub);border-radius:30px;padding:10px 8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;text-align:center;}
@@ -145,6 +155,14 @@
   .toast--success{background:var(--brown);color:#fff;font-size:15px;font-weight:700;padding:14px 28px;box-shadow:0 4px 24px rgba(123,92,69,.4);}
   .toast.show{opacity:1;}
   .loading{padding:80px 20px;text-align:center;color:var(--text-muted);font-size:14px;}
+
+  /* レンタル仮予約完了モーダル */
+  .complete-overlay{position:fixed;inset:0;background:rgba(44,32,24,.5);display:flex;align-items:center;justify-content:center;z-index:300;backdrop-filter:blur(3px);padding:20px;}
+  .complete-card{background:var(--surface);border-radius:20px;padding:32px 24px;max-width:340px;width:100%;text-align:center;border-top:4px solid var(--brown);}
+  .complete-card__icon{font-size:40px;margin-bottom:12px;}
+  .complete-card__title{font-family:'Noto Serif JP',serif;font-size:19px;font-weight:700;color:var(--brown);margin:0 0 16px;}
+  .complete-card__body{font-size:13px;color:var(--text-sub);line-height:1.9;margin:0 0 24px;text-align:left;}
+  .complete-card__body strong{color:var(--text);font-weight:700;}
 
   /* 混雑度 */
   .cong-bars{display:flex;gap:5px;margin:4px 0 12px;}
@@ -347,9 +365,11 @@
     tab: 'storage',
     rentalModel: 'seat2',
     weekOffset: 0,
+    dateView: 'week',      // 'week' | 'calendar'
+    userCalMonth: null,    // {year, month}
     selectedDate: toKey(new Date()),
     bookings: {rental:[], storage:[]},
-    settings: {rental2Capacity:2, rental3Capacity:1, storageCapacity:5},
+    settings: {rental2Capacity:1, rental3Capacity:4, storageCapacity:5},
     modal: null,
     confirmingCancelId: null,
     admin: {id: DEFAULT_ADMIN_HASH.id, pw: DEFAULT_ADMIN_HASH.pw},
@@ -377,6 +397,9 @@
   }
   function addDays(d,n){var r=new Date(d);r.setDate(r.getDate()+n);return r;}
   function todayKey(){return toKey(new Date());}
+  function maxBookingKey(){
+    var d=new Date(); d.setMonth(d.getMonth()+1); return toKey(d);
+  }
   function fmtLabel(key){
     var p=key.split('-'),d=new Date(+p[0],+p[1]-1,+p[2]);
     return (+p[1])+'月'+(+p[2])+'日（'+WEEKDAYS[d.getDay()]+'）';
@@ -567,20 +590,86 @@
     '</div>';
   }
 
+  function getUserCalMonth(){
+    if(state.userCalMonth) return state.userCalMonth;
+    var now=new Date(); return {year:now.getFullYear(), month:now.getMonth()};
+  }
+
   function renderDateNav(){
-    var html='<div class="date-nav">'+
-      '<button class="date-nav__arrow" data-action="prev-week" '+(state.weekOffset<=0?'disabled':'')+'>&#8249;</button>'+
-      '<button class="date-nav__arrow" data-action="next-week" '+(state.weekOffset>=12?'disabled':'')+'>&#8250;</button>'+
-      '<button class="date-nav__today" data-action="goto-today">今日</button>'+
-    '</div><div class="date-strip">';
+    var maxKey = maxBookingKey();
+    // 切り替えボタン
+    var viewToggle =
+      '<div class="date-view-toggle">'+
+        '<button class="view-toggle-btn '+(state.dateView==='week'?'is-active':'')+'" data-action="date-view" data-view="week">週</button>'+
+        '<button class="view-toggle-btn '+(state.dateView==='calendar'?'is-active':'')+'" data-action="date-view" data-view="calendar">カレンダー</button>'+
+      '</div>';
+
+    if(state.dateView==='calendar'){
+      var cm=getUserCalMonth();
+      var year=cm.year, month=cm.month;
+      var firstDay=new Date(year,month,1).getDay();
+      var daysInMonth=new Date(year,month+1,0).getDate();
+      var today=todayKey();
+
+      // 前後月ナビ
+      var prevDate=new Date(year,month-1,1);
+      var prevKey=toKey(new Date(prevDate.getFullYear(),prevDate.getMonth(),1));
+      var canPrev=prevKey>=todayKey().slice(0,7);
+      var nextDate=new Date(year,month+1,1);
+      var nextMonthFirstKey=toKey(nextDate);
+      var canNext=nextMonthFirstKey<=maxKey;
+
+      var html='<div class="date-view-bar">'+viewToggle+
+        '<div class="cal-nav" style="flex:1;">'+
+          '<button class="cal-nav__arrow" data-action="user-cal-prev" '+(canPrev?'':'disabled')+'>&#8249;</button>'+
+          '<span class="cal-nav__label">'+year+'年'+(month+1)+'月</span>'+
+          '<button class="cal-nav__arrow" data-action="user-cal-next" '+(canNext?'':'disabled')+'>&#8250;</button>'+
+        '</div>'+
+      '</div>';
+
+      html+='<div class="user-cal-grid">'+
+        WEEKDAYS.map(function(d){return '<div class="cal-wd">'+d+'</div>';}).join('');
+      for(var i=0;i<firstDay;i++) html+='<div class="cal-cell is-empty"></div>';
+      for(var d=1;d<=daysInMonth;d++){
+        var key=year+'-'+String(month+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+        var isPast=key<today;
+        var isOver=key>maxKey;
+        var isDisabled=isPast||isOver;
+        var isToday=key===today;
+        var isSel=key===state.selectedDate;
+        html+='<button class="cal-cell '+(isToday?'is-today':'')+' '+(isSel?'is-selected':'')+' '+(isDisabled?'is-disabled':'')+'" '+
+          (isDisabled?'disabled':('data-action="select-date" data-date="'+key+'"'))+'>'+
+          '<span class="cal-cell__d">'+d+'</span>'+
+        '</button>';
+      }
+      html+='</div>';
+      html+='<div class="selected-date-label">'+fmtLabel(state.selectedDate)+'　の空き状況</div>';
+      return html;
+    }
+
+    // 週表示
+    var maxWeekOffset = 4; // 約1ヶ月（4週）
+    var html='<div class="date-view-bar">'+viewToggle+
+      '<div class="date-nav" style="flex:1;">'+
+        '<button class="date-nav__arrow" data-action="prev-week" '+(state.weekOffset<=0?'disabled':'')+'>&#8249;</button>'+
+        '<button class="date-nav__arrow" data-action="next-week" '+(state.weekOffset>=maxWeekOffset?'disabled':'')+'>&#8250;</button>'+
+        '<button class="date-nav__today" data-action="goto-today">今日</button>'+
+      '</div>'+
+    '</div>';
+    html+='<div class="date-strip">';
     for(var i=0;i<7;i++){
-      var d=addDays(new Date(),state.weekOffset*7+i),key=toKey(d);
-      html+='<button class="day-chip '+(key===todayKey()?'is-today':'')+' '+(key===state.selectedDate?'is-selected':'')+'" data-action="select-date" data-date="'+key+'">'+
+      var d=addDays(new Date(),state.weekOffset*7+i);
+      var key=toKey(d);
+      var isOver=key>maxKey;
+      html+='<button class="day-chip '+(key===todayKey()?'is-today':'')+' '+(key===state.selectedDate?'is-selected':'')+' '+(isOver?'is-disabled':'')+'" '+
+        (isOver?'disabled':('data-action="select-date" data-date="'+key+'"'))+'>'+
         '<span class="day-chip__wd">'+WEEKDAYS[d.getDay()]+'</span>'+
         '<span class="day-chip__d">'+d.getDate()+'</span>'+
       '</button>';
     }
-    return html+'</div><div class="selected-date-label">'+fmtLabel(state.selectedDate)+'　の空き状況</div>';
+    html+='</div>';
+    html+='<div class="selected-date-label">'+fmtLabel(state.selectedDate)+'　の空き状況</div>';
+    return html;
   }
 
   function renderModelRow(){
@@ -734,7 +823,7 @@
               '<label class="sel-item"><input type="radio" name="gas" value="燃料持ち込み"><span class="sel-label">燃料持ち込み</span></label>'+
             '</div>'+
           '</div>'+
-          '<div class="field field--req"><label>洗艇</label>'+
+          '<div class="field field--req"><label>洗艇<span style="font-size:10px;font-weight:500;color:var(--text-muted);margin-left:6px;">※利用日前日まで受付可</span></label>'+
             '<div class="select-group" id="f-wash">'+
               '<label class="sel-item"><input type="radio" name="wash" value="サーガラに洗艇を依頼（8,800円）"><span class="sel-label">サーガラに洗艇を依頼（8,800円）</span></label>'+
               '<label class="sel-item"><input type="radio" name="wash" value="希望しない"><span class="sel-label">希望しない</span></label>'+
@@ -1078,6 +1167,26 @@
   function escapeHtml(s){
     return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});
   }
+  function showRentalCompleteMessage(){
+    var overlay = document.createElement('div');
+    overlay.className = 'complete-overlay';
+    overlay.innerHTML =
+      '<div class="complete-card">'+
+        '<div class="complete-card__icon">🛥️</div>'+
+        '<p class="complete-card__title">仮予約が完了しました</p>'+
+        '<div class="complete-card__body">'+
+          '<strong>担当者が内容確認次第、予約承認をさせていただきます。</strong><br><br>'+
+          '担当者承認後、自動で本予約となります。<br>'+
+          'マイページより予約状況をご確認いただけます。'+
+        '</div>'+
+        '<button class="btn btn--primary btn--block" id="complete-close-btn">閉じる</button>'+
+      '</div>';
+    document.body.appendChild(overlay);
+    document.getElementById('complete-close-btn').addEventListener('click', function(){
+      overlay.remove();
+    });
+  }
+
   function showToast(msg, type){
     var t=document.createElement('div');
     t.className='toast'+(type==='success'?' toast--success':'');
@@ -1091,6 +1200,9 @@
     var el=e.target.closest('[data-action]');if(!el) return;
     var a=el.dataset.action;
     if(a==='modal-inner'){ e.stopPropagation(); return; }
+    else if(a==='date-view'){state.dateView=el.dataset.view;render();}
+    else if(a==='user-cal-prev'){var m=getUserCalMonth();var nd=new Date(m.year,m.month-1,1);state.userCalMonth={year:nd.getFullYear(),month:nd.getMonth()};render();}
+    else if(a==='user-cal-next'){var m=getUserCalMonth();var nd=new Date(m.year,m.month+1,1);state.userCalMonth={year:nd.getFullYear(),month:nd.getMonth()};render();}
     else if(a==='switch-tab'){state.tab=el.dataset.tab;state.confirmingCancelId=null;render();}
     else if(a==='switch-model'){state.rentalModel=el.dataset.model;state.confirmingCancelId=null;render();}
     else if(a==='prev-week'){if(state.weekOffset>0){state.weekOffset--;render();}}
@@ -1165,8 +1277,12 @@
     var storageInvalid=type==='storage'&&(!time||timeInvalid||!gas||!wash);
     if(!name||!phone||storageInvalid){
       errEl.style.display='block';
-      if(type==='storage'&&name&&phone&&time&&(!gas||!wash)){
+      if(type==='storage'&&timeInvalid){
+        errEl.textContent='来店時刻は9:00〜15:00の間でご選択ください。';
+      } else if(type==='storage'&&name&&phone&&time&&(!gas||!wash)){
         errEl.textContent='ガソリンと洗艇の選択をご確認ください。';
+      } else if(type==='storage'&&!time){
+        errEl.textContent='来店予定時刻をご入力ください。';
       } else {
         errEl.textContent='すべての必須項目をご選択・ご入力ください。';
       }
@@ -1199,7 +1315,11 @@
     booking.id = newId;
     state.bookings[type].push(booking);
     state.modal=null;render();
-    saveBooking(type, booking).then(function(){ showToast('ご予約が完了しました','success'); });
+    if(type==='storage'){
+      saveBooking(type, booking).then(function(){ showToast('ご予約が完了しました','success'); });
+    } else {
+      saveBooking(type, booking).then(function(){ showRentalCompleteMessage(); });
+    }
   }
 
   function handleCancel(id){
