@@ -440,8 +440,13 @@
       var col = type==='rental' ? 'bookings_rental' : 'bookings_storage';
       var data = Object.assign({}, booking);
       var id = data.id; delete data.id;
+      console.log('saveBooking開始:', col, id, data);
       await setDoc(doc(db, col, id), data);
-    }catch(e){ showToast('保存に失敗しました'); }
+      console.log('saveBooking成功:', col, id);
+    }catch(e){
+      console.error('saveBookingエラー:', e);
+      showToast('保存に失敗しました');
+    }
   }
   async function deleteBooking(type, id){
     try{
@@ -1119,6 +1124,7 @@
 
   function handleSubmit(){
     var type=state.tab;
+    console.log('handleSubmit開始:', type);
     var name=(document.getElementById('f-name')||{value:''}).value.trim();
     var phone=(document.getElementById('f-phone')||{value:''}).value.trim();
     var note=(document.getElementById('f-note')||{value:''}).value.trim();
