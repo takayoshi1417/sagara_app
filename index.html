@@ -289,7 +289,7 @@
 <body>
 <div id="app"><div class="loading">読み込み中です…</div></div>
 <script type="module">
-  // -------- Firebase 初期化 --------
+  // -------- Firebase 初期化（モジュールスコープ） --------
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
   import {
     getFirestore, doc, getDoc, setDoc,
@@ -307,7 +307,21 @@
   const fbApp = initializeApp(firebaseConfig);
   const db    = getFirestore(fbApp);
 
-(async function(){
+  // Firebaseの関数をグローバルに公開（通常scriptから使えるように）
+  window._fbDb = db;
+  window._fbSetDoc = setDoc;
+  window._fbGetDoc = getDoc;
+  window._fbGetDocs = getDocs;
+  window._fbDeleteDoc = deleteDoc;
+  window._fbDoc = doc;
+  window._fbCollection = collection;
+  window._fbReady = false;
+
+  // アプリ初期化を通知
+  window.dispatchEvent(new Event('firebase-ready'));
+</script>
+<script>
+(function(){
   "use strict";
 
   var BOOKINGS_KEY = 'marina_bookings_v1';
@@ -386,7 +400,7 @@
   async function loadData(){
     // 予約データ（レンタル）
     try{
-      var rentalSnap = await getDocs(collection(db,'bookings_rental'));
+      var rentalSnap = await window._fbGetDocs(window._fbCollection(window._fbDb,'bookings_rental'));
       state.bookings.rental=[];
       rentalSnap.forEach(function(d){ var b=d.data(); b.id=d.id; state.bookings.rental.push(b); });
       state.bookings.rental.forEach(function(b){if(!b.model) b.model='seat3';});
@@ -394,7 +408,7 @@
 
     // 予約データ（揚降）
     try{
-      var storageSnap = await getDocs(collection(db,'bookings_storage'));
+      var storageSnap = await window._fbGetDocs(window._fbCollection(window._fbDb,'bookings_storage'));
       state.bookings.storage=[];
       storageSnap.forEach(function(d){ var b=d.data(); b.id=d.id; state.bookings.storage.push(b); });
       state.bookings.storage.forEach(function(b){if(!b.time) b.time='09:00';});
@@ -402,7 +416,7 @@
 
     // 会員データ
     try{
-      var membersSnap = await getDocs(collection(db,'members'));
+      var membersSnap = await window._fbGetDocs(window._fbCollection(window._fbDb,'members'));
       state.members=[];
       membersSnap.forEach(function(d){ var m=d.data(); m.id=d.id; state.members.push(m); });
     }catch(e){ state.members=[]; }
@@ -419,13 +433,13 @@
 
     // 管理者認証情報
     try{
-      var adminDoc = await getDoc(doc(db,'admin','credentials'));
+      var adminDoc = await window._fbGetDoc(window._fbDoc(window._fbDb,'admin','credentials'));
       state.admin = adminDoc.exists() ? adminDoc.data() : Object.assign({},DEFAULT_ADMIN_HASH);
     }catch(e){ state.admin=Object.assign({},DEFAULT_ADMIN_HASH); }
 
     // 設定
     try{
-      var settingsDoc = await getDoc(doc(db,'settings','main'));
+      var settingsDoc = await window._fbGetDoc(window._fbDoc(window._fbDb,'settings','main'));
       var l = settingsDoc.exists() ? settingsDoc.data() : {};
       state.settings={
         rental2Capacity: l.rental2Capacity!==undefined?l.rental2Capacity:DEFAULT_SETTINGS.rental2Capacity,
@@ -440,34 +454,31 @@
       var col = type==='rental' ? 'bookings_rental' : 'bookings_storage';
       var data = Object.assign({}, booking);
       var id = data.id; delete data.id;
-      console.log('saveBooking開始:', col, id, data);
-      await setDoc(doc(db, col, id), data);
-      console.log('saveBooking成功:', col, id);
+      await window._fbSetDoc(window._fbDoc(window._fbDb, col, id), data);
     }catch(e){
-      console.error('saveBookingエラー:', e);
       showToast('保存に失敗しました');
     }
   }
   async function deleteBooking(type, id){
     try{
       var col = type==='rental' ? 'bookings_rental' : 'bookings_storage';
-      await deleteDoc(doc(db, col, id));
+      await window._fbDeleteDoc(window._fbDoc(window._fbDb, col, id));
     }catch(e){ showToast('削除に失敗しました'); }
   }
   async function saveMember(member){
     try{
       var data = Object.assign({}, member);
       var id = data.id; delete data.id;
-      await setDoc(doc(db,'members',id), data);
+      await window._fbSetDoc(window._fbDoc(window._fbDb,'members',id), data);
     }catch(e){ showToast('会員情報の保存に失敗しました'); }
   }
   function saveSession(id){ lsSet(SESSION_KEY,JSON.stringify({id:id})); }
   function clearSession(){ try{localStorage.removeItem(SESSION_KEY);}catch(e){} }
   async function saveSettings(){
-    try{ await setDoc(doc(db,'settings','main'), state.settings); }catch(e){}
+    try{ await window._fbSetDoc(window._fbDoc(window._fbDb,'settings','main'), state.settings); }catch(e){}
   }
   async function saveAdminCredentials(){
-    try{ await setDoc(doc(db,'admin','credentials'), state.admin); }catch(e){}
+    try{ await window._fbSetDoc(window._fbDoc(window._fbDb,'admin','credentials'), state.admin); }catch(e){}
   }
 
   function getCapacity(type,model){
@@ -1065,9 +1076,7 @@
   }
 
   document.addEventListener('click',function(e){
-    var el=e.target.closest('[data-action]');
-    console.log('click:', e.target.tagName, el ? el.dataset.action : 'no-action');
-    if(!el) return;
+    var el=e.target.closest('[data-action]');if(!el) return;
     var a=el.dataset.action;
     if(a==='switch-tab'){state.tab=el.dataset.tab;state.confirmingCancelId=null;render();}
     else if(a==='switch-model'){state.rentalModel=el.dataset.model;state.confirmingCancelId=null;render();}
@@ -1126,7 +1135,6 @@
 
   function handleSubmit(){
     var type=state.tab;
-    console.log('handleSubmit開始:', type);
     var name=(document.getElementById('f-name')||{value:''}).value.trim();
     var phone=(document.getElementById('f-phone')||{value:''}).value.trim();
     var note=(document.getElementById('f-note')||{value:''}).value.trim();
@@ -1303,14 +1311,27 @@
     saveSettings().then(function(){ showToast('設定を保存しました'); });
   }
 
-  try{
-    await Promise.race([
-      loadData(),
-      new Promise(function(resolve){ setTimeout(resolve, 5000); }) // 5秒でタイムアウト
-    ]);
-  }catch(e){ console.warn('loadData error:', e); }
-  state.loaded=true;
-  render();
+  async function init(){
+    try{
+      await Promise.race([
+        loadData(),
+        new Promise(function(resolve){ setTimeout(resolve, 5000); })
+      ]);
+    }catch(e){ console.warn('loadData error:', e); }
+    state.loaded=true;
+    render();
+  }
+
+  // Firebaseの準備ができてから初期化
+  if(window._fbDb){
+    init();
+  } else {
+    window.addEventListener('firebase-ready', function(){ init(); }, {once:true});
+    // 6秒でタイムアウト（Firebase読み込み失敗時も表示する）
+    setTimeout(function(){
+      if(!state.loaded){ state.loaded=true; render(); }
+    }, 6000);
+  }
 })();
 </script>
 </body>
