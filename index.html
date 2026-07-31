@@ -131,6 +131,8 @@
   .booking-row__name{font-size:14px;font-weight:700;color:var(--text);}
   .booking-row__meta{font-size:12px;color:var(--text-sub);margin-top:2px;}
   .empty-note{padding:16px 16px;font-size:13px;color:var(--text-muted);}
+  .booking-login-note{margin:16px;padding:18px;background:var(--surface);border:1px solid var(--border);border-radius:12px;text-align:center;}
+  .booking-login-note__text{font-size:13px;color:var(--text-sub);margin:0;line-height:1.8;}
   .confirm-box{display:flex;align-items:center;gap:6px;}
   .confirm-box span{font-size:12px;color:var(--danger);font-weight:700;}
 
@@ -730,60 +732,17 @@
   }
 
   function renderBookingList(){
-    var type=state.tab,model=type==='rental'?state.rentalModel:null;
-    var list=state.bookings[type].filter(function(b){
-      return b.date===state.selectedDate&&(type!=='rental'||b.model===model);
-    });
-    if(type==='storage') list.sort(function(a,b){return (a.time||'').localeCompare(b.time||'');});
-    else{ var o={am:0,pm:1,day:2}; list.sort(function(a,b){return o[a.slot]-o[b.slot];}); }
-    var html='<div class="section-title">この日の予約一覧'+(type==='rental'?'（'+MODEL_LABEL[model]+'）':'')+'</div>';
-    if(!list.length) return html+'<div class="empty-note">まだ予約はありません。</div>';
-
-    // レンタルの場合：予約日の1週間前（7日前）を過ぎているかチェック
-    var isWithinWeek = false;
-    if(type==='rental'){
-      var p=state.selectedDate.split('-');
-      var bookDate=new Date(+p[0],+p[1]-1,+p[2]);
-      var deadline=new Date(bookDate);
-      deadline.setDate(deadline.getDate()-7);
-      isWithinWeek = new Date() > deadline; // 今日がデッドラインを超えていたら電話のみ
-    }
-
-    html+='<div class="booking-list">';
-    list.forEach(function(b){
-      var badge=type==='storage'?(b.time||'--:--'):SLOT_LABEL[b.slot];
-      html+='<div class="booking-row">'+
-        '<span class="booking-row__slot">'+badge+'</span>'+
-        '<div class="booking-row__main">'+
-          '<div class="booking-row__name">'+escapeHtml(b.name)+'</div>'+
-          '<div class="booking-row__meta">'+escapeHtml(b.phone)+
-          (type==='rental'&&b.guests?'　・　同伴者 '+b.guests+'名':'')+
-          (type==='storage'&&b.gas?'　・　'+escapeHtml(b.gas):'　')+
-          (type==='storage'&&b.wash?'　・　洗艇：'+escapeHtml(b.wash):'')+
-          (b.options&&b.options.length?'<div class="booking-row__opts">'+b.options.map(function(o){return '<span class="opt-tag">'+escapeHtml(o)+'</span>';}).join('')+'</div>':'')+
-          '</div>'+
-        '</div>';
-      if(type==='rental' && isWithinWeek){
-        // 1週間以内：電話キャンセルのみ
-        html+='<a href="tel:0569370039" class="cancel-tel">📞 電話<br>キャンセル</a>';
-      } else if(state.confirmingCancelId===b.id){
-        html+='<div class="confirm-box"><span>取消す？</span>'+
-          '<button class="btn btn--danger btn--sm" data-action="confirm-cancel" data-id="'+b.id+'">削除</button>'+
-          '<button class="btn btn--ghost btn--sm" data-action="abort-cancel">戻る</button></div>';
-      } else {
-        html+='<button class="btn btn--ghost btn--sm" data-action="ask-cancel" data-id="'+b.id+'">キャンセル</button>';
-      }
-      html+='</div>';
-    });
-
-    if(type==='rental' && isWithinWeek){
-      html+='<div class="cancel-notice">'+
-        '⚠️ 予約日まで1週間を切っています。キャンセルはお電話にて承ります。<br>'+
-        '<a href="tel:0569370039" class="cancel-tel-link">📞 0569-37-0039</a>'+
+    // 予約一覧はマイページのみ表示。ここでは予約確認の誘導のみ表示。
+    if(!state.currentMember){
+      return '<div class="booking-login-note">'+
+        '<p class="booking-login-note__text">予約の確認・キャンセルは<br>ログイン後マイページからご確認いただけます。</p>'+
+        '<button class="btn btn--ghost" style="margin-top:8px" data-action="open-mypage">ログイン / 会員登録</button>'+
       '</div>';
     }
-
-    return html+'</div>';
+    return '<div class="booking-login-note">'+
+      '<p class="booking-login-note__text">ご予約の確認はマイページからご確認いただけます。</p>'+
+      '<button class="btn btn--ghost" style="margin-top:8px" data-action="open-mypage">マイページを開く</button>'+
+    '</div>';
   }
 
   var RENTAL_OPTIONS = [
