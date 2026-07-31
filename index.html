@@ -1064,7 +1064,7 @@
     setTimeout(function(){t.classList.remove('show');setTimeout(function(){t.remove();},300);},3000);
   }
 
-  app.addEventListener('click',function(e){
+  document.addEventListener('click',function(e){
     var el=e.target.closest('[data-action]');if(!el) return;
     var a=el.dataset.action;
     if(a==='switch-tab'){state.tab=el.dataset.tab;state.confirmingCancelId=null;render();}
