@@ -153,6 +153,11 @@
   .modal__actions .btn{flex:1;}
   .error-text{color:var(--danger);font-size:12px;margin:-10px 0 14px;display:none;}
 
+  /* 予約フォーム内の会員情報バー */
+  .member-info-bar{display:flex;align-items:center;gap:8px;background:rgba(123,92,69,.08);border:1px solid var(--brown-light);border-radius:10px;padding:10px 14px;margin-bottom:16px;}
+  .member-info-bar__icon{font-size:16px;}
+  .member-info-bar__name{font-size:13px;font-weight:700;color:var(--brown);}
+
   .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);border:none;padding:12px 20px;border-radius:30px;font-size:13px;z-index:100;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;box-shadow:0 4px 16px rgba(44,32,24,.2);}
   .toast--success{background:var(--brown);color:#fff;font-size:15px;font-weight:700;padding:14px 28px;box-shadow:0 4px 24px rgba(123,92,69,.4);}
   .toast.show{opacity:1;}
@@ -261,6 +266,14 @@
   .opt-item:has(input:checked){border-color:var(--brown);background:rgba(123,92,69,.06);}
   .booking-row__opts{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;}
   .opt-tag{font-size:10px;font-weight:700;background:rgba(123,92,69,.12);color:var(--brown);border-radius:4px;padding:2px 6px;}
+
+  /* パスワード表示切り替え */
+  .pw-wrap{position:relative;display:flex;align-items:center;}
+  .pw-wrap input{flex:1;padding-right:52px;}
+  .pw-toggle{position:absolute;right:10px;background:none;border:none;color:var(--brown);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;padding:4px;}
+
+  /* 会員登録注意書き */
+  .auth-notice{background:rgba(123,92,69,.08);border:1px solid var(--brown-light);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--brown);font-weight:500;margin-bottom:14px;line-height:1.6;}
 
   /* キャンセルポリシー */
   .cancel-tel{display:inline-block;font-size:11px;font-weight:700;color:var(--brown);border:1px solid var(--brown-light);border-radius:8px;padding:5px 8px;text-align:center;line-height:1.3;text-decoration:none;white-space:nowrap;}
@@ -767,14 +780,27 @@
         }).join('')+
         '</div></div>';
     }
+    var member = state.currentMember;
+    var memberInfo = member ?
+      '<div class="member-info-bar">'+
+        '<span class="member-info-bar__icon">👤</span>'+
+        '<span class="member-info-bar__name">'+escapeHtml(member.name)+'　'+escapeHtml(member.phone)+'</span>'+
+      '</div>' :
+      '';
+    // 未ログイン時のみ氏名・電話番号入力欄を表示
+    var namePhoneFields = member ? '' :
+      '<div class="field field--req"><label>お名前</label><input type="text" id="f-name" placeholder="山田 太郎"></div>'+
+      '<div class="field field--req"><label>電話番号</label><input type="tel" id="f-phone" placeholder="090-0000-0000"></div>'+
+      '<div class="field field--req"><label>メールアドレス</label><input type="email" id="f-email" placeholder="taro@example.com"></div>';
+
     return '<div class="overlay" data-action="close-modal">'+
       '<div class="modal" data-action="modal-inner">'+
         '<p class="modal__title">'+TAB_LABEL[type].bottom+(model?'　'+MODEL_LABEL[model]:'')+'の予約</p>'+
         '<p class="modal__sub">'+fmtLabel(state.selectedDate)+'　'+subLabel+'</p>'+
+        memberInfo+
         (type==='storage'?
           '<div class="field field--req"><label>来店予定時刻（9:00〜15:00）</label><input type="time" id="f-time" step="300" min="09:00" max="15:00"></div>'+
-          '<div class="field field--req"><label>お名前</label><input type="text" id="f-name" placeholder="山田 太郎"></div>'+
-          '<div class="field field--req"><label>電話番号</label><input type="tel" id="f-phone" placeholder="090-0000-0000"></div>'+
+          namePhoneFields+
           '<div class="field field--req"><label>ガソリン</label>'+
             '<div class="select-group" id="f-gas">'+
               '<label class="sel-item"><input type="radio" name="gas" value="ハイオク給油（サーガラ）"><span class="sel-label">サーガラで給油（ハイオク）</span></label>'+
@@ -790,8 +816,7 @@
           '</div>'+
           '<div class="field"><label>メモ・備考（任意）</label><textarea id="f-note" placeholder="ご要望があればご記入ください"></textarea></div>'
         :
-          '<div class="field field--req"><label>お名前</label><input type="text" id="f-name" placeholder="山田 太郎"></div>'+
-          '<div class="field field--req"><label>電話番号</label><input type="tel" id="f-phone" placeholder="090-0000-0000"></div>'
+          namePhoneFields
         )+
         (type==='rental'?'<div class="field"><label>同伴者様の人数（ご本人を除く）</label><div class="counter-row"><button type="button" class="counter-btn" data-counter="minus">－</button><span class="counter-val" id="f-guests-val">0</span><input type="hidden" id="f-guests" value="0"><button type="button" class="counter-btn" data-counter="plus">＋</button><span class="counter-unit">名</span></div></div>':'')+
         optionsHtml+
@@ -825,15 +850,23 @@
       if(isLogin){
         html+='<p class="auth-lead">登録済みのメールアドレスとパスワードでログインしてください。</p>'+
           '<div class="field field--req"><label>メールアドレス</label><input type="email" id="au-email" placeholder="taro@example.com" autocomplete="email"></div>'+
-          '<div class="field field--req"><label>パスワード</label><input type="password" id="au-pw" placeholder="••••••••" autocomplete="current-password"></div>'+
+          '<div class="field field--req"><label>パスワード</label>'+
+            '<div class="pw-wrap"><input type="password" id="au-pw" placeholder="パスワード" autocomplete="current-password"><button type="button" class="pw-toggle" data-target="au-pw">表示</button></div>'+
+          '</div>'+
           '<p class="error-text" id="au-err" style="display:none">メールアドレスまたはパスワードが違います</p>'+
           '<button class="btn btn--primary btn--block" data-action="do-login" style="margin-top:4px">ログイン</button>';
       } else {
-        html+='<p class="auth-lead">氏名・電話番号・メールアドレス・パスワードをご入力ください。</p>'+
+        html+='<div class="auth-notice">💡 会員登録すると、次回から氏名・電話番号等の入力を省略できます</div>'+
+          '<p class="auth-lead">氏名・電話番号・メールアドレス・パスワードをご入力ください。</p>'+
           '<div class="field field--req"><label>氏名</label><input type="text" id="au-name" placeholder="山田 太郎"></div>'+
           '<div class="field field--req"><label>電話番号</label><input type="tel" id="au-phone" placeholder="090-0000-0000"></div>'+
           '<div class="field field--req"><label>メールアドレス</label><input type="email" id="au-email-r" placeholder="taro@example.com" autocomplete="email"></div>'+
-          '<div class="field field--req"><label>パスワード</label><input type="password" id="au-pw-r" placeholder="6文字以上" autocomplete="new-password"></div>'+
+          '<div class="field field--req"><label>パスワード<span style="font-size:10px;font-weight:500;color:var(--text-muted);margin-left:6px;">半角英数字8文字以上</span></label>'+
+            '<div class="pw-wrap"><input type="password" id="au-pw-r" placeholder="半角英数字8文字以上" autocomplete="new-password"><button type="button" class="pw-toggle" data-target="au-pw-r">表示</button></div>'+
+          '</div>'+
+          '<div class="field field--req"><label>パスワード（確認）</label>'+
+            '<div class="pw-wrap"><input type="password" id="au-pw-r2" placeholder="もう一度入力" autocomplete="new-password"><button type="button" class="pw-toggle" data-target="au-pw-r2">表示</button></div>'+
+          '</div>'+
           '<p class="error-text" id="au-err-r" style="display:none">入力内容をご確認ください</p>'+
           '<button class="btn btn--primary btn--block" data-action="do-register" style="margin-top:4px">登録して始める</button>';
       }
@@ -1203,6 +1236,22 @@
     else if(a==='save-admin-pw'){handleSaveAdminPw();}
   });
 
+  // パスワード表示切り替え
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest('.pw-toggle');
+    if(!btn) return;
+    var targetId = btn.dataset.target;
+    var input = document.getElementById(targetId);
+    if(!input) return;
+    if(input.type==='password'){
+      input.type='text';
+      btn.textContent='隠す';
+    } else {
+      input.type='password';
+      btn.textContent='表示';
+    }
+  });
+
   // 同伴者カウンター：モーダルはapp外に挿入されるためdocumentで受ける
   document.addEventListener('click', function(e){
     var btn = e.target.closest('[data-counter]');
@@ -1219,8 +1268,16 @@
 
   function handleSubmit(){
     var type=state.tab;
-    var name=(document.getElementById('f-name')||{value:''}).value.trim();
-    var phone=(document.getElementById('f-phone')||{value:''}).value.trim();
+    var member=state.currentMember;
+    // ログイン済みは会員情報から自動取得、未ログインは入力欄から取得
+    var name=member ? member.name : (document.getElementById('f-name')||{value:''}).value.trim();
+    var phone=member ? member.phone : (document.getElementById('f-phone')||{value:''}).value.trim();
+    var guestEmail=member ? member.email : ((document.getElementById('f-email')||{value:''}).value.trim());
+    if(!member && (!name||!phone||!guestEmail||guestEmail.indexOf('@')===-1)){
+      var errEl=document.getElementById('f-error');
+      if(errEl){errEl.textContent='お名前・電話番号・メールアドレスをご入力ください。';errEl.style.display='block';}
+      return;
+    }
     var note=(document.getElementById('f-note')||{value:''}).value.trim();
     var errEl=document.getElementById('f-error');
     var timeEl=document.getElementById('f-time');
@@ -1277,12 +1334,12 @@
     if(type==='storage'){
       saveBooking(type, booking).then(function(){
         showToast('ご予約が完了しました','success');
-        sendMail({type:type, action:'new_booking', booking:booking});
+        sendMail({type:type, action:'new_booking', booking:booking, guestEmail:guestEmail});
       });
     } else {
       saveBooking(type, booking).then(function(){
         showRentalCompleteMessage();
-        sendMail({type:type, action:'new_booking', booking:booking});
+        sendMail({type:type, action:'new_booking', booking:booking, guestEmail:guestEmail});
       });
     }
   }
@@ -1315,9 +1372,18 @@
     var phone=(document.getElementById('au-phone')||{value:''}).value.trim();
     var email=(document.getElementById('au-email-r')||{value:''}).value.trim().toLowerCase();
     var pw=(document.getElementById('au-pw-r')||{value:''}).value;
+    var pw2=(document.getElementById('au-pw-r2')||{value:''}).value;
     var errEl=document.getElementById('au-err-r');
-    if(!name||!phone||!email||pw.length<6||email.indexOf('@')===-1){
-      if(errEl){errEl.textContent='すべての項目を正しくご入力ください（パスワードは6文字以上）';errEl.style.display='block';}return;
+    var pwValid=/^[a-zA-Z0-9]{8,}$/.test(pw);
+    if(!name||!phone||!email||!pwValid||email.indexOf('@')===-1){
+      if(errEl){
+        if(!pwValid) errEl.textContent='パスワードは半角英数字8文字以上で入力してください';
+        else errEl.textContent='すべての項目を正しくご入力ください';
+        errEl.style.display='block';
+      }return;
+    }
+    if(pw!==pw2){
+      if(errEl){errEl.textContent='パスワードが一致しません';errEl.style.display='block';}return;
     }
     var dup=state.members.filter(function(m){return m.email.toLowerCase()===email;})[0];
     if(dup){
