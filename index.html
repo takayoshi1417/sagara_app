@@ -1275,9 +1275,15 @@
     state.bookings[type].push(booking);
     state.modal=null;render();
     if(type==='storage'){
-      saveBooking(type, booking).then(function(){ showToast('ご予約が完了しました','success'); });
+      saveBooking(type, booking).then(function(){
+        showToast('ご予約が完了しました','success');
+        sendMail({type:type, action:'new_booking', booking:booking});
+      });
     } else {
-      saveBooking(type, booking).then(function(){ showRentalCompleteMessage(); });
+      saveBooking(type, booking).then(function(){
+        showRentalCompleteMessage();
+        sendMail({type:type, action:'new_booking', booking:booking});
+      });
     }
   }
 
@@ -1339,10 +1345,23 @@
     clearSession();
   }
 
+  // -------- メール送信 --------
+  var WORKER_URL = 'https://soft-voice-c145.takayoshi-tatebe-msg.workers.dev';
+
+  function sendMail(payload){
+    return fetch(WORKER_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    }).catch(function(e){ console.warn('メール送信失敗:', e); });
+  }
+
   function handleMyCancel(type,id){
+    var booking = state.bookings[type].filter(function(b){return b.id===id;})[0];
     state.bookings[type]=state.bookings[type].filter(function(b){return b.id!==id;});
     state.myConfirmCancel=null;render();
     deleteBooking(type,id).then(function(){ showToast('予約を取消しました'); });
+    if(booking) sendMail({type:type, action:'cancelled', booking:booking});
   }
 
   function handleAdminConfirm(type, id){
@@ -1352,13 +1371,30 @@
       if(list[i].id===id){ list[i].confirmed=true; booking=list[i]; break; }
     }
     render();
-    if(booking) saveBooking(type, booking).then(function(){ showToast('予約を確定しました'); });
+    if(booking){
+      saveBooking(type, booking).then(function(){ showToast('予約を確定しました'); });
+      // 予約者の会員情報からメールアドレスを取得して送信
+      var member = state.members.filter(function(m){
+        return m.name===booking.name && m.phone===booking.phone;
+      })[0];
+      if(member && member.email){
+        sendMail({
+          type: type,
+          action: 'confirmed',
+          booking: booking,
+          memberEmail: member.email,
+          memberName: member.name
+        });
+      }
+    }
   }
 
   function handleAdminCancel(type, id){
+    var booking = state.bookings[type].filter(function(b){return b.id===id;})[0];
     state.bookings[type]=state.bookings[type].filter(function(b){return b.id!==id;});
     state.adminConfirmCancel=null;render();
     deleteBooking(type,id).then(function(){ showToast('予約を取消しました'); });
+    if(booking) sendMail({type:type, action:'cancelled', booking:booking});
   }
 
   function handleAdminLogin(){
